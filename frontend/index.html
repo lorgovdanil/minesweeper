@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сапёр</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Панель пользователя -->
+        <div class="user-panel">
+            <div id="authSection">
+                <button id="showLoginBtn">Вход</button>
+                <button id="showRegisterBtn">Регистрация</button>
+            </div>
+            <div id="userSection" style="display: none;">
+                <span id="userGreeting">Привет, </span>
+                <button id="logoutBtn">Выйти</button>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="game-section">
+                <div class="control-panel">
+                    <label>
+                        Размер доски:
+                        <input type="number" id="boardSize" min="5" max="20" value="10">
+                    </label>
+                    <label>
+                        Количество бомб:
+                        <input type="number" id="mineCount" min="1" max="50" value="10">
+                    </label>
+                    <button id="startGame">Начать игру</button>
+                </div>
+
+                <div id="board" class="board"></div>
+            </div>
+
+            <div class="leaderboard-section">
+                <h3>Таблица лидеров</h3>
+                <div class="leaderboard-controls">
+                    <div class="player-name-display">
+                        <span>Игрок: </span>
+                        <span id="playerName">Гость</span>
+                    </div>
+                    <button id="saveScore">Сохранить результат</button>
+                </div>
+                <div class="leaderboard">
+                    <div class="leaderboard-header">
+                        <span>Место</span>
+                        <span>Игрок</span>
+                        <span>Время</span>
+                        <span>Размер</span>
+                        <span>Сложность</span>
+                    </div>
+                    <div id="leaderboardBody" class="leaderboard-body"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Вход в аккаунт</h3>
+            <form id="loginForm" autocomplete="off">
+                <input type="text" id="loginUsername" name="username" placeholder="Имя пользователя" required autocomplete="off">
+                <input type="password" id="loginPassword" name="password" placeholder="Пароль" required autocomplete="off">
+                <button type="submit">Войти</button>
+            </form>
+            <div id="loginMessage"></div>
+        </div>
+    </div>
+
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Регистрация аккаунта</h3>
+            <form id="registerForm" autocomplete="off">
+                <input type="text" id="registerUsername" name="username" placeholder="Имя пользователя" required minlength="3" autocomplete="off">
+                <input type="password" id="registerPassword" name="password" placeholder="Пароль" required minlength="3" autocomplete="off">
+                <button type="submit">Зарегистрироваться</button>
+            </form>
+            <div id="registerMessage"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
