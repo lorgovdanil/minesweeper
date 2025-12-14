@@ -8,6 +8,7 @@ let timerInterval = null;
 let currentGameTime = 0.0;
 let gameWon = false;
 let isScoreSaved = false;
+let firstClickMade = false;
 
 const board = document.getElementById("board");
 
@@ -22,8 +23,20 @@ document.querySelector(".control-panel").appendChild(timerElement);
 
 
 document.getElementById("startGame").addEventListener("click", () => {
-    boardSize = parseInt(document.getElementById("boardSize").value);
-    selectedAmountOfMines = parseInt(document.getElementById("mineCount").value);
+    const size = parseInt(document.getElementById("boardSize").value);
+    const mines = parseInt(document.getElementById("mineCount").value);
+
+    if (size < 5 || size > 20) {
+        return;
+    }
+
+    const maxMines = size * size - 9;
+    if (mines < 1 || mines > maxMines) {
+        return;
+    }
+
+    boardSize = size;
+    selectedAmountOfMines = mines;
     startGame();
 });
 
@@ -134,6 +147,7 @@ function startGame() {
     isGameOver = false;
     gameWon = false;
     revealedCellsCount = 0;
+    firstClickMade = false;
     grid = [];
     board.innerHTML = '';
     board.style.gridTemplateColumns = `repeat(${boardSize}, 30px)`;
@@ -163,9 +177,9 @@ function stopTimer() {
 }
 
 function createBoard() {
-    for (let row = 0; row <= boardSize - 1; row++) {
+    for (let row = 0; row < boardSize; row++) {
         const rowArr = [];
-        for (let col = 0; col <= boardSize - 1; col++) {
+        for (let col = 0; col < boardSize; col++) {
             const cell = document.createElement("div");
             cell.classList.add("cell");
 
@@ -179,7 +193,23 @@ function createBoard() {
                 isFlagged: false,
             }
 
-            cell.addEventListener("click", () => revealCell(cellData));
+            cell.addEventListener("click", (e) => {
+                if (cellData.isRevealed && cellData.mineCount > 0) {
+                    quickRevealNeighbors(cellData);
+                    return;
+                }
+                if (!cellData.isRevealed) {
+                    revealCell(cellData);
+                }
+            });
+
+            cell.addEventListener("dblclick", (e) => {
+                e.preventDefault();
+                if (cellData.isRevealed && cellData.mineCount > 0) {
+                    quickRevealNeighbors(cellData);
+                }
+            });
+
             cell.addEventListener("contextmenu", (e) => {
                 e.preventDefault();
                 toggleFlag(cellData);
@@ -193,37 +223,53 @@ function createBoard() {
 }
 
 function placeMines(firstClickRow, firstClickCol) {
-    let minesPlacesCount = 0;
+    const availablePositions = [];
 
-    while (minesPlacesCount < selectedAmountOfMines) {
-        const row = Math.floor(Math.random() * boardSize);
-        const col = Math.floor(Math.random() * boardSize);
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
+            const isNearFirstClick = Math.abs(row - firstClickRow) <= 1 &&
+                Math.abs(col - firstClickCol) <= 1;
 
-        const isNearFirstClick = Math.abs(row - firstClickRow) <= 1 && Math.abs(col - firstClickCol) <= 1;
-
-        if (!grid[row][col].isMine && !isNearFirstClick) {
-            grid[row][col].isMine = true;
-            minesPlacesCount++;
+            if (!isNearFirstClick) {
+                availablePositions.push({ row, col });
+            }
         }
+    }
+
+    if (availablePositions.length < selectedAmountOfMines) {
+        console.error('Недостаточно позиций для размещения мин');
+        return;
+    }
+
+    for (let i = availablePositions.length - 1; i > 0 && selectedAmountOfMines > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [availablePositions[i], availablePositions[j]] = [availablePositions[j], availablePositions[i]];
+    }
+
+    for (let i = 0; i < selectedAmountOfMines; i++) {
+        const { row, col } = availablePositions[i];
+        grid[row][col].isMine = true;
     }
 }
 
 function calculateNeighbours() {
-    for (let row = 0; row <= boardSize - 1; row++) {
-        for (let col = 0; col <= boardSize - 1; col++) {
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
             const cellData = grid[row][col];
 
             if (cellData.isMine) {
-                continue
+                continue;
             }
 
             let mineCount = 0;
             for (let r = -1; r <= 1; r++) {
                 for (let c = -1; c <= 1; c++) {
+                    if (r === 0 && c === 0) continue;
+
                     const newRow = row + r;
                     const newCol = col + c;
 
-                    if ((newRow >= 0 && newRow < boardSize && newCol >= 0 && newCol < boardSize)) {
+                    if (newRow >= 0 && newRow < boardSize && newCol >= 0 && newCol < boardSize) {
                         if (grid[newRow][newCol].isMine) {
                             mineCount++;
                         }
@@ -236,22 +282,18 @@ function calculateNeighbours() {
 }
 
 function revealCell(cellData) {
-    if (isGameOver || cellData.isRevealed) {
+    if (isGameOver || cellData.isRevealed || cellData.isFlagged) {
         return;
     }
 
-    if (revealedCellsCount === 0) {
+    if (!firstClickMade) {
         placeMines(cellData.row, cellData.col);
         calculateNeighbours();
         startTimer();
+        firstClickMade = true;
     }
 
     const cell = cellData.element;
-
-    if (cellData.isFlagged) {
-        cellData.isFlagged = false;
-        cell.classList.remove('flagged');
-    }
 
     cellData.isRevealed = true;
     revealedCellsCount++;
@@ -261,76 +303,108 @@ function revealCell(cellData) {
         isGameOver = true;
         gameWon = false;
         stopTimer();
-
         revealAllMines();
-
+        cell.classList.add('mine-exploded');
         return;
     }
 
     if (cellData.mineCount > 0) {
         cell.textContent = cellData.mineCount;
+        cell.classList.add(`number-${cellData.mineCount}`);
     } else {
-        revealNeighbors(cellData.row, cellData.col);
+        revealNeighborsIterative(cellData.row, cellData.col);
     }
 
     checkWinCondition();
 }
 
 function checkWinCondition() {
-    if (revealedCellsCount === (boardSize * boardSize - selectedAmountOfMines)) {
+    const totalSafeCells = boardSize * boardSize - selectedAmountOfMines;
+    if (revealedCellsCount === totalSafeCells) {
         isGameOver = true;
         gameWon = true;
         stopTimer();
 
-        revealAllMines();
+        markAllMinesAsFlagged();
     }
 }
 
 function revealAllMines() {
-    for (let row = 0; row <= boardSize - 1; row++) {
-        for (let col = 0; col <= boardSize - 1; col++) {
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
             const cellData = grid[row][col];
 
             if (cellData.isMine) {
-
                 cellData.isRevealed = true;
                 cellData.element.classList.add("revealed");
                 cellData.element.classList.add("mine");
 
-                if (cellData.isFlagged) {
-                    cellData.isFlagged = false;
-                    cellData.element.classList.remove('flagged');
+                if (!cellData.isFlagged) {
+                    cellData.element.classList.add("mine-wrong");
                 }
+            } else if (cellData.isFlagged && !cellData.isMine) {
+                cellData.element.classList.add("flag-wrong");
             }
         }
     }
 }
 
-function revealNeighbors(row, col) {
-    for (let r = -1; r <= 1; r++) {
-        for (let c = -1; c <= 1; c++) {
-            const newRow = row + r;
-            const newCol = col + c;
+function markAllMinesAsFlagged() {
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
+            const cellData = grid[row][col];
 
-            if ((newRow >= 0 && newRow < boardSize && newCol >= 0 && newCol < boardSize)) {
+            if (cellData.isMine && !cellData.isFlagged) {
+                cellData.isFlagged = true;
+                cellData.element.classList.add("flagged");
+            }
+        }
+    }
+}
+
+function revealNeighborsIterative(startRow, startCol) {
+    const queue = [{ row: startRow, col: startCol }];
+    const processed = new Set();
+
+    while (queue.length > 0) {
+        const { row, col } = queue.shift();
+        const key = `${row},${col}`;
+
+        if (processed.has(key)) continue;
+        processed.add(key);
+
+        for (let r = -1; r <= 1; r++) {
+            for (let c = -1; c <= 1; c++) {
+                if (r === 0 && c === 0) continue;
+
+                const newRow = row + r;
+                const newCol = col + c;
+
+                if (newRow < 0 || newRow >= boardSize || newCol < 0 || newCol >= boardSize) {
+                    continue;
+                }
+
                 const neighbor = grid[newRow][newCol];
+                const neighborKey = `${newRow},${newCol}`;
 
-                if (!neighbor.isRevealed && !neighbor.isMine) {
-                    if (neighbor.isFlagged) {
-                        neighbor.isFlagged = false;
-                        neighbor.element.classList.remove('flagged');
-                        neighbor.element.textContent = '';
-                    }
+                if (processed.has(neighborKey) || neighbor.isRevealed || neighbor.isMine) {
+                    continue;
+                }
 
-                    neighbor.isRevealed = true;
-                    neighbor.element.classList.add('revealed');
-                    revealedCellsCount++;
+                if (neighbor.isFlagged) {
+                    neighbor.isFlagged = false;
+                    neighbor.element.classList.remove('flagged');
+                }
 
-                    if (neighbor.mineCount == 0) {
-                        revealNeighbors(newRow, newCol);
-                    } else {
-                        neighbor.element.textContent = neighbor.mineCount;
-                    }
+                neighbor.isRevealed = true;
+                neighbor.element.classList.add('revealed');
+                revealedCellsCount++;
+
+                if (neighbor.mineCount === 0) {
+                    queue.push({ row: newRow, col: newCol });
+                } else {
+                    neighbor.element.textContent = neighbor.mineCount;
+                    neighbor.element.classList.add(`number-${neighbor.mineCount}`);
                 }
             }
         }
@@ -344,6 +418,41 @@ function toggleFlag(cellData) {
 
     cellData.isFlagged = !cellData.isFlagged;
     cellData.element.classList.toggle('flagged');
+}
+
+function quickRevealNeighbors(cellData) {
+    if (isGameOver || !cellData.isRevealed || cellData.mineCount === 0) {
+        return;
+    }
+
+    let flaggedCount = 0;
+    const neighbors = [];
+
+    for (let r = -1; r <= 1; r++) {
+        for (let c = -1; c <= 1; c++) {
+            if (r === 0 && c === 0) continue;
+
+            const newRow = cellData.row + r;
+            const newCol = cellData.col + c;
+
+            if (newRow >= 0 && newRow < boardSize && newCol >= 0 && newCol < boardSize) {
+                const neighbor = grid[newRow][newCol];
+                neighbors.push(neighbor);
+
+                if (neighbor.isFlagged) {
+                    flaggedCount++;
+                }
+            }
+        }
+    }
+
+    if (flaggedCount === cellData.mineCount) {
+        neighbors.forEach(neighbor => {
+            if (!neighbor.isRevealed && !neighbor.isFlagged) {
+                revealCell(neighbor);
+            }
+        });
+    }
 }
 
 async function saveScoreToServer(score) {
