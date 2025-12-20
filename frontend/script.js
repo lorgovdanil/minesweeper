@@ -489,7 +489,7 @@ async function loadLeaderboardFromServer() {
         return await response.json();
     } catch (error) {
         console.error('Error loading leaderboard:', error);
-        return getLocalLeaderboard();
+        throw error;
     }
 }
 
@@ -525,9 +525,8 @@ async function saveScore() {
         await loadLeaderboard();
         isScoreSaved = true;
     } catch (error) {
-        console.error('Server save failed, trying local storage...');
-        saveScoreToLocal(score);
-        await loadLeaderboard();
+        console.error('Failed to save score to server:', error);
+        alert('Не удалось сохранить результат на сервере');
     }
 }
 
@@ -545,8 +544,8 @@ async function loadLeaderboard() {
         const leaderboard = await loadLeaderboardFromServer();
         displayLeaderboard(leaderboard);
     } catch (error) {
-        const localLeaderboard = getLocalLeaderboard();
-        displayLeaderboard(localLeaderboard);
+        console.error('Failed to load leaderboard:', error);
+        displayLeaderboard([]);
     }
 }
 
@@ -593,24 +592,6 @@ function displayLeaderboard(scores) {
 }
 
 
-function saveScoreToLocal(score) {
-    const leaderboard = getLocalLeaderboard();
-    leaderboard.push({
-        ...score,
-        id: Date.now(),
-        created_at: new Date().toISOString()
-    });
-
-    leaderboard.sort((a, b) => (a.time_seconds || a.time) - (b.time_seconds || b.time));
-    const topScores = leaderboard.slice(0, 20);
-
-    localStorage.setItem('minesweeperLeaderboard', JSON.stringify(topScores));
-}
-
-function getLocalLeaderboard() {
-    const stored = localStorage.getItem('minesweeperLeaderboard');
-    return stored ? JSON.parse(stored) : [];
-}
 
 
 async function checkServerConnection() {
