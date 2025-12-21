@@ -4,6 +4,7 @@ PostgreSQL (v12 или выше)
 npm
 
 Шаги установки:
+
 1 Настройка базы данных: # -bash
   cd backend # переход в папку backend
   npm install
