@@ -312,7 +312,7 @@ function revealCell(cellData) {
         cell.textContent = cellData.mineCount;
         cell.classList.add(`number-${cellData.mineCount}`);
     } else {
-        revealNeighborsIterative(cellData.row, cellData.col);
+        revealNeighbors(cellData.row, cellData.col);
     }
 
     checkWinCondition();
@@ -362,51 +362,42 @@ function markAllMinesAsFlagged() {
     }
 }
 
-function revealNeighborsIterative(startRow, startCol) {
-    const queue = [{ row: startRow, col: startCol }];
-    const processed = new Set();
+function revealNeighbors(row, col) {
+    const key = `${row},${col}`;
 
-    while (queue.length > 0) {
-        const { row, col } = queue.shift();
-        const key = `${row},${col}`;
+    if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+        return;
+    }
 
-        if (processed.has(key)) continue;
-        processed.add(key);
+    const cell = grid[row][col];
 
-        for (let r = -1; r <= 1; r++) {
-            for (let c = -1; c <= 1; c++) {
-                if (r === 0 && c === 0) continue;
+    if (cell.isRevealed || cell.isMine) {
+        return;
+    }
 
-                const newRow = row + r;
-                const newCol = col + c;
+    if (cell.isFlagged) {
+        cell.isFlagged = false;
+        cell.element.classList.remove('flagged');
+    }
 
-                if (newRow < 0 || newRow >= boardSize || newCol < 0 || newCol >= boardSize) {
-                    continue;
-                }
+    cell.isRevealed = true;
+    cell.element.classList.add('revealed');
+    revealedCellsCount++;
 
-                const neighbor = grid[newRow][newCol];
-                const neighborKey = `${newRow},${newCol}`;
+    if (cell.mineCount > 0) {
+        cell.element.textContent = cell.mineCount;
+        cell.element.classList.add(`number-${cell.mineCount}`);
+        return;
+    }
 
-                if (processed.has(neighborKey) || neighbor.isRevealed || neighbor.isMine) {
-                    continue;
-                }
+    for (let r = -1; r <= 1; r++) {
+        for (let c = -1; c <= 1; c++) {
+            if (r === 0 && c === 0) continue;
 
-                if (neighbor.isFlagged) {
-                    neighbor.isFlagged = false;
-                    neighbor.element.classList.remove('flagged');
-                }
+            const newRow = row + r;
+            const newCol = col + c;
 
-                neighbor.isRevealed = true;
-                neighbor.element.classList.add('revealed');
-                revealedCellsCount++;
-
-                if (neighbor.mineCount === 0) {
-                    queue.push({ row: newRow, col: newCol });
-                } else {
-                    neighbor.element.textContent = neighbor.mineCount;
-                    neighbor.element.classList.add(`number-${neighbor.mineCount}`);
-                }
-            }
+            revealNeighbors(newRow, newCol);
         }
     }
 }
